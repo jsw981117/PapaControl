@@ -1,0 +1,32 @@
+export const GAME = {
+  width: 960,
+  height: 540,
+  worldWidth: 6000,
+  worldHeight: 1100,
+  moveSpeed: 220,
+  jumpSpeed: 430,
+  gravity: 1050,
+  glideGravity: 180,
+  glideLift: 35,
+  maxFallSpeed: 430,
+  playerRadius: 24,
+  safetyFloorY: 1030,
+  finishX: 5570,
+} as const;
+
+export const COLORS = {
+  sky: 0x101a2d,
+  skyLight: 0x1c3152,
+  ground: 0x365c53,
+  groundTop: 0x72d6a5,
+  platform: 0x33466b,
+  platformTop: 0x81a5f8,
+  player: 0xffca5c,
+  playerDark: 0xa95f31,
+  wing: 0xbde7ff,
+  text: '#f5f7ff',
+  textMuted: '#a9b7d1',
+  control: 0x1c2944,
+  controlActive: 0x4667a9,
+  danger: 0xef6d77,
+} as const;
