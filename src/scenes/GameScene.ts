@@ -48,14 +48,23 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  public update(): void {
+  public update(_time: number, delta: number): void {
     if (this.completed) {
       return;
     }
     const actions = this.controls.read();
-    this.player.update(actions);
+    this.player.update(actions, delta);
     this.assistStairSlopes(actions.direction);
-    this.stateText.setText(this.player.getState().toUpperCase());
+    const status = this.player.getStatus();
+    const actionLabel = status.slamming ? ' · SLAM' : status.turning ? ' · TURN' : '';
+    this.stateText.setText(`${status.state.toUpperCase()} · T${status.tier} · ${status.speed}${actionLabel}`);
+
+    const playerEvent = this.player.consumeEvent();
+    if (playerEvent === 'drop-boost') {
+      this.showTransientHint('DROP BOOST! · TIER 2');
+    } else if (playerEvent === 'slam-land') {
+      this.showTransientHint('SLAM · 높이가 부족해 boost 없음');
+    }
 
     if (this.player.sprite.y > GAME.safetyFloorY - 60) {
       const anchor = findRecoveryAnchor(this.player.sprite.x, RECOVERY_ANCHORS);
@@ -96,10 +105,11 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.existing(safety, true);
     this.platforms.add(safety);
 
-    this.addZoneLabel(210, 610, 'START  ·  자동 구르기');
-    this.addZoneLabel(910, 590, 'SLOPE');
+    this.addZoneLabel(210, 610, 'START  ·  SHIFT / BOOST');
+    this.addZoneLabel(910, 590, 'TIER 1 → 2');
     this.addZoneLabel(1620, 440, 'UPPER DECK');
-    this.addZoneLabel(2860, 370, 'JUMP & LAND');
+    this.addZoneLabel(2860, 370, 'JUMP · MOMENTUM KEEP');
+    this.addZoneLabel(3430, 520, 'SLAM  ·  ↓ / S');
     this.addZoneLabel(3880, 590, 'FLY GATE  ·  길게 누르기');
     this.createFinishFlag();
   }
@@ -139,36 +149,54 @@ export class GameScene extends Phaser.Scene {
       fontFamily: 'monospace', fontSize: '22px', fontStyle: 'bold', color: COLORS.text,
       backgroundColor: '#1c2944', padding: { x: 12, y: 7 },
     }).setScrollFactor(0).setDepth(100);
-    this.hintText = this.add.text(0, 0, '← → / A D  방향 전환    SPACE  점프 · 활공', {
+    this.hintText = this.add.text(0, 0, 'A/D 방향 · SPACE 점프/활공 · SHIFT boost · ↓/S slam', {
       fontFamily: 'system-ui', fontSize: '16px', color: COLORS.textMuted,
     }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
 
     this.controlLayer = this.add.container(0, 0).setScrollFactor(0).setDepth(100);
     const left = this.createControlButton('←', () => this.controls.setTouchDirection(-1));
     const right = this.createControlButton('→', () => this.controls.setTouchDirection(1));
-    const jump = this.createControlButton('FLY', undefined, true);
+    const jump = this.createControlButton(
+      'FLY',
+      () => this.controls.setTouchJump(true),
+      () => this.controls.setTouchJump(false),
+      15,
+    );
+    const boost = this.createControlButton(
+      'BOOST',
+      () => this.controls.setTouchBoost(true),
+      () => this.controls.setTouchBoost(false),
+      12,
+    );
+    const slam = this.createControlButton('SLAM', () => this.controls.pressTouchSlam(), undefined, 12);
     left.setName('left');
     right.setName('right');
     jump.setName('jump');
-    this.controlLayer.add([left, right, jump]);
+    boost.setName('boost');
+    slam.setName('slam');
+    this.controlLayer.add([left, right, jump, boost, slam]);
     this.layoutHud();
   }
 
-  private createControlButton(label: string, onDown?: () => void, isJump = false): Phaser.GameObjects.Container {
+  private createControlButton(
+    label: string,
+    onDown?: () => void,
+    onUp?: () => void,
+    fontSize = 28,
+  ): Phaser.GameObjects.Container {
     const circle = this.add.circle(0, 0, 36, COLORS.control, 0.82).setStrokeStyle(2, 0xffffff, 0.25);
     const text = this.add.text(0, 0, label, {
-      fontFamily: 'monospace', fontSize: isJump ? '15px' : '28px', fontStyle: 'bold', color: COLORS.text,
+      fontFamily: 'monospace', fontSize: `${fontSize}px`, fontStyle: 'bold', color: COLORS.text,
     }).setOrigin(0.5);
     const button = this.add.container(0, 0, [circle, text]);
     button.setSize(80, 80).setInteractive({ useHandCursor: true });
     button.on('pointerdown', () => {
       circle.setFillStyle(COLORS.controlActive, 0.95);
-      if (isJump) this.controls.setTouchJump(true);
       onDown?.();
     });
     const release = (): void => {
       circle.setFillStyle(COLORS.control, 0.82);
-      if (isJump) this.controls.setTouchJump(false);
+      onUp?.();
     };
     button.on('pointerup', release).on('pointerout', release);
     return button;
@@ -181,9 +209,13 @@ export class GameScene extends Phaser.Scene {
     const leftButton = this.controlLayer.getByName('left');
     const rightButton = this.controlLayer.getByName('right');
     const jumpButton = this.controlLayer.getByName('jump');
+    const boostButton = this.controlLayer.getByName('boost');
+    const slamButton = this.controlLayer.getByName('slam');
     if (leftButton instanceof Phaser.GameObjects.Container) leftButton.setPosition(66, height - 65);
     if (rightButton instanceof Phaser.GameObjects.Container) rightButton.setPosition(150, height - 65);
     if (jumpButton instanceof Phaser.GameObjects.Container) jumpButton.setPosition(width - 72, height - 68);
+    if (boostButton instanceof Phaser.GameObjects.Container) boostButton.setPosition(width - 156, height - 68);
+    if (slamButton instanceof Phaser.GameObjects.Container) slamButton.setPosition(width - 72, height - 152);
     const compact = width < 720 || this.sys.game.device.input.touch;
     this.controlLayer.setVisible(compact);
     this.hintText.setVisible(!compact);

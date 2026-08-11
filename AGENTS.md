@@ -41,7 +41,7 @@ src/
 ├── entities/Player.ts       # roll/fly 상태와 물리 행동
 ├── input/PlayerInput.ts     # 키보드/멀티터치 액션 통합
 ├── scenes/GameScene.ts      # 테스트 레벨, HUD, 완료 흐름
-└── systems/                 # Phaser 비의존 순수 규칙 및 테스트
+└── systems/                 # 체크포인트·모멘텀·tier 순수 규칙 및 테스트
 docs/
 ├── gdd.md
 └── roadmap.md
@@ -53,8 +53,8 @@ docs/
 ## 5. 화면과 입력
 
 - `Phaser.Scale.RESIZE`를 사용하며 HUD는 `setScrollFactor(0)`로 화면에 고정합니다.
-- PC: 방향키 또는 A/D로 방향 전환, Space로 점프/활공합니다.
-- 모바일: 하단 좌/우/FLY 버튼을 제공하고 동시 입력을 지원합니다.
+- PC: 방향키 또는 A/D로 방향 전환, Space로 점프/활공, Shift로 boost, 공중에서 아래 방향키/S로 slam합니다.
+- 모바일: 하단 좌/우/FLY/BOOST/SLAM 버튼을 제공하고 동시 입력을 지원합니다.
 - 좌우 입력을 떼어도 마지막 방향으로 계속 이동해야 합니다.
 - 터치 히트 영역은 최소 72px 수준을 유지하고 Safe Area를 고려합니다.
 
